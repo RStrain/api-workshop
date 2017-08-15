@@ -25,30 +25,71 @@ var map = new ol.Map({
 });
 
 var app = {
-	mapzenKey:'mapzen-oAnXKyC',
+	mapzenKey: 'mapzen-CpAANqF',
   	activeSearch: 'from',
+    options: [],
+    selection: {
+    	from: {},
+        to: {}
+    },
   
   	typeAhead: function(e){
     	var el = e.target;
-      	var val = el.value;
-      if(val.length > 2){
-      	app.queryAutocomplete(val, function(err, data){
-        console.log(data)
-        })
-      }
+        var val = el.value;
+        
+      	if(val.length > 2){
+          app.queryAutocomplete(val, function(err, data){
+              if(err) return console.log(err);
+              if(data.features) app.options = data.features;
+              app.renderResultsList();
+          })
+        }
     },
   
-  queryAutocomplete: throttle(function(text,
-callback) {$.ajax({
-    url:'https://search.mapzen.com/v1/autocomplete?text=' + text + '&api_key=' + app.mapzenKey,
-  success: function(){
-  	callback(null, data);},
-  error: function(req, status, err) {
-  callback(err):
-  }
-  }) 
-  }, 150)
+  	queryAutocomplete: throttle(function(text, callback){
+      $.ajax({
+        	url:'https://search.mapzen.com/v1/autocomplete?text=' + text + '&api_key=' + app.mapzenKey,
+        success: function(data, status, req){
+        	callback(null, data);
+        },
+        error: function(req, status, err){
+        	callback(err);
+        }
+      })
+    }, 150),
+  
+  	renderResultsList: function(){
+    	var resultsList = $('#results-list');
+        resultsList.empty();
+      
+      	var results = app.options.map(function(feature){
+        	var li = $('<li class="results-list-item">' + feature.properties.label + '</li>');
+            li.on('click', function(){
+            	app.selectItem(feature);
+            })
+          	return li;
+        })
+        
+        resultsList.append(results);
+      
+      	if(app.options.length > 0){
+          resultsList.removeClass('hidden');
+        }else{
+          resultsList.addClass('hidden');
+        }
+    },
+  
+  	selectItem: function(feature){
+     	 app.selection[app.activeSearch] = feature;
+    	 var elId = '#search-' + app.activeSearch + '-input';
+      	$(elId).val(feature.properties.label);
+      	app.clearList();
+    },
+  
+  	clearList: function(){
+    	app.options = [];
+      	app.renderResultsList();
+    }
 }
 
-$('#search-from-input').on('keyup', {input:'from'},
-	app.typeAhead)
+$('#search-from-input').on('keyup', {input:'from'}, app.typeAhead);
